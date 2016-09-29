@@ -1,0 +1,115 @@
+A simple compiler of the M- language written in C 
+
+To compile and link, cd to directory containing makefile and run make
+
+To run, redirect input from file to program as follows:
+
+./scanner "inFile" "outFile" (where inFile is the name of the source file and outFile is where generated code will be written to).
+
+Calls the lexer to generate a list of tokens. This list of tokens is then parsed in accordance with the M- grammar. Also builds an AST that uses tabs to indicate levels of the tree (children). Then, does code generation and outputs any generated code to the output file. In the case there is an error, the program will continue to parse past the error, reporting as many other errors as it can. It was also possible to implement this so that it exited on the occurrence of the first error, but I thought this would be more helpful.
+
+Transformation of the M- grammar to recursive decent form
+
+prog -> stmt. 
+stmt -> IF expr THEN stmt ELSE stmt
+            | WHILE expr DO stmt
+            | INPUT ID
+            | ID ASSIGN expr
+            | WRITE expr
+            | BEGIN stmtlist END. 
+stmtlist -> stmtlist stmt SEMICOLON
+            |. 
+expr -> expr addop term 
+            | term. 
+addop -> ADD
+            | SUB. 
+term -> term mulop factor 
+            | factor. 
+mulop -> MUL
+            | DIV. 
+factor -> LPAR expr RPAR
+            | ID
+            | NUM
+            | SUB NUM.
+
+There is immediate left recursion in the rules for stmtlist,expr and term. This can be eliminated using the rules seen in class and tutorial, and results in the following grammar:
+
+prog -> stmt. 
+stmt -> IF expr THEN stmt ELSE stmt
+            | WHILE expr DO stmt
+            | INPUT ID
+            | ID ASSIGN expr
+            | WRITE expr
+            | BEGIN stmtlist END. 
+stmtlist -> stmtlist'
+
+stmtlist'-> stmt SEMICOLON stmtlist' |.
+expr -> term expr' 
+expr'-> addop term expr' |. 
+addop -> ADD
+            | SUB. 
+term -> factor term' 
+term'-> mulop factor term' 
+mulop -> MUL
+            | DIV. 
+factor -> LPAR expr RPAR
+            | ID
+            | NUM
+            | SUB NUM.
+We then break apart the rules so that the grammar is in recursive descent form
+prog -> stmt. 
+stmt -> IF expr thenpart elsepart
+            | WHILE expr dopart
+            | INPUT ID
+            | ID ASSIGN expr
+            | WRITE expr
+            | BEGIN stmtlist endpart.
+thenpart-> THEN stmt
+elsepart-> ELSE stmt
+dopart-> DO stmt
+endpart->END
+stmtlist -> stmtlist'
+stmtlist'-> stmt semi stmtlist' |.
+expr -> term expr' 
+expr'-> addop term expr' |. 
+addop -> ADD
+            | SUB. 
+term -> factor term' 
+term'-> mulop factor term' 
+mulop -> MUL
+            | DIV. 
+factor -> LPAR expr rpar
+            | ID
+            | NUM
+            | SUB NUM.
+rpar-> RPAR
+
+Finally, on rules with multiple productions, we expand the first non-terminal so that we can pattern match appropriately (removing any rules that are now unreachable).
+
+prog -> stmt. 
+stmt -> IF expr thenpart elsepart
+            | WHILE expr dopart
+            | INPUT ID
+            | ID ASSIGN expr
+            | WRITE expr
+            | BEGIN stmtlist endpart.
+thenpart-> THEN stmt
+elsepart-> ELSE stmt
+dopart-> DO stmt
+endpart->END
+stmtlist -> stmtlist'
+//Stmtlist is implementing using a looping construct in the parserm, rather than having a seperate function that is mostly a copy of stmt
+stmtlist'-> IF... semi stmtlist' | WHILE ... semi stmtlist| ... |.
+expr -> term expr' 
+expr'-> ADD term expr' | SUB term expr'|. 
+term -> factor term' 
+term'-> MUL factor term' | DIV factor term'|. 
+factor -> LPAR expr rpar
+            | ID
+            | NUM
+            | SUB NUM.
+rpar-> RPAR
+
+The grammar is now in recursive descent form.
+
+
